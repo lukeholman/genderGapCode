@@ -606,7 +606,7 @@ journal.data.for.export <- read.csv("../data for analysis/Statistics for each jo
 write.csv(pubmed.data.for.export, file = "../data for analysis/Supplementary dataset 1 - PubMed gender information.csv", row.names = F)
 write.csv(country.specific.pubmed.data.for.export, file = "../data for analysis/Supplementary dataset 2 - PubMed gender information - split by country.csv", row.names = F)
 write.csv(arxiv.data.for.export, file = "../data for analysis/Supplementary dataset 3 - ArXiv gender information.csv", row.names = F)
-
+write.csv(journals_sqlite %>% as.data.frame() %>% select(short.title, Discipline, title) %>% rename(journal = short.title, discipline = Discipline, fullTitle = title), file = "../genderGapCode/journal_disciplines.csv", row.names = F)
 
 
 ################################################################################################################
