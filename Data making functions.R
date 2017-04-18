@@ -317,211 +317,6 @@ zip.all.files.together <- function(file.list = c(list.files("../data/Main files 
 
 
 
- 
-# First, we need to make a list of all the journals, plus list the files that they are in. Since this takes a while, we write a file with this information for use in the next function.
-# make.journal.key.file <- function(file.list = c(list.files("../data/Main files - parsed", full.names = T), list.files("../data/Update files - parsed", full.names = T))){
-#   journal.key <- data.frame(journal = rep(NA, 20000000), file.plus.rows = NA)
-#   start <- 1
-#   tally <- 0
-#   num.files <- length(file.list)
-#   print(paste("Doing file", 1, "out of", num.files))
-#   for(i in 1:num.files){
-#     if(i %% 10 == 0) print(paste("Doing file", i, "out of", num.files))
-#     journal.column <- read.csv(file.list[i], stringsAsFactors = F)$journal # open the focal file and get the 'journal' column
-#     journal.column <- journal.column[!is.na(journal.column)] # Get rid of the NAs
-#     unique.journals <- unique(journal.column)
-#     num.rows <- length(unique.journals)
-#     cells <- start:(start+num.rows-1)
-#     journal.key$journal[cells] <- unique.journals
-#     journal.key$file.plus.rows[cells] <- paste(file.list[i], lapply(unique.journals, function(x) paste0(range(which(journal.column == x)), collapse = "-")), sep = "_")
-#     start <- start + num.rows
-#     tally <- tally + num.rows
-#     if(tally > 20000000) print("uh-oh, you need to declare a bigger empty in the make.journal.key.file() function")
-#   }
-#   
-#   journal.key <- journal.key[!is.na(journal.key$journal), ] # remove the excess of NAs at the end of the file
-#   journal.key <- journal.key[order(journal.key$journal), ] # sort by journal
-#   return(journal.key)
-# }
-# 
-# 
-# # This function takes all the parsed files, groups them into a dataframe by journal, removes duplicated PMIDs (using the updates one where available), and finally writes a new csv file to disk (one per journal) in the specified directory
-# group.by.journal <- function(output.dir, journal.key, focal.chunk = NULL, num.chunks = 8){
-#   
-#   unique.journals <- sort(unique(journal.key$journal)) # Here are all the unique journal found earlier
-#   num.journals <- length(unique.journals)
-#   
-#   if(!is.null(focal.chunk)){ # Specify the focal chunk of files
-#     chunk.size <- floor(num.journals / num.chunks)
-#     if(focal.chunk > num.chunks) return("Check your inputs, they're wrong!")
-#     
-#     # Make a sequence of journals. Spread evenly over the available ones
-#     sequence <- seq(from = focal.chunk, to = (num.chunks*chunk.size)+focal.chunk-1, by = num.chunks)
-#     #if final chunk, add on the bonus files
-#     if(focal.chunk == num.chunks) sequence <- c(sequence, (1:num.journals)[(1:num.journals) > max(sequence)])
-# 
-#     unique.journals <- unique.journals[sequence] # Restrict to just the focal chunk of journals
-#     num.journals <- length(unique.journals) # re-count the number of journals in the subset
-#   }
-#   
-#   
-#   column.names <- names(read.csv(list.files("../data/Main files - parsed/", full.names = T)[1],nrows =1))
-#   
-#   file.opener <- function(filepath.plus.row) { # Internal function that can open the combination of filepath and row names that is passed to it in the journal.key file 
-#     split <- strsplit(filepath.plus.row, split = "_")[[1]]
-#     split.rows <- as.numeric(strsplit(split[2], split = "-")[[1]])
-#     focal <- read.csv(file = split[1], 
-#                     skip = split.rows[1] - 1, 
-#                     nrows = 1 + split.rows[2] - split.rows[1],
-#                     stringsAsFactors = F)
-#     names(focal) <- column.names
-#     return(focal)
-#   }
-#   
-#   print(paste("Doing journal", 1, "of", num.journals))
-#   for(i in 1:num.journals){
-#     if(i %% 50 == 0) print(paste("Doing journal", i, "of", num.journals))
-#     files.to.open <- journal.key$file.plus.rows[journal.key$journal == unique.journals[i]]
-#     # make sure they're in right order - newest update files, then oldest update files, then newest main files, and finally oldest main files.
-#     files.to.open <- c(rev(sort(files.to.open[grep("Update", files.to.open)])), rev(sort(files.to.open[grep("Main", files.to.open)])))
-#     data.for.focal.journal <- do.call("rbind", lapply(files.to.open, file.opener)) # Open each file and get the rows that have the focal journal in them
-#     data.for.focal.journal <- data.for.focal.journal[!(duplicated(data.for.focal.journal$pmid)), ] # Remove any duplicate papers (will use the newest one, if there is a Pubmed update)
-#     
-#     focal.journal <- unique.journals[i] # Now write an output file, named after the journal
-#     nchar.foc <- nchar(focal.journal)
-#     if(substr(focal.journal, nchar.foc, nchar.foc) == " ") focal.journal <- substr(focal.journal, 1, nchar.foc - 1) # If the last character of the journal name is a space (often is), trim it off. 
-#     write.csv(data.for.focal.journal, file = paste(output.dir, "/", focal.journal, ".csv", sep=""), row.names = F)
-#   }
-# }
-# 
-# 
-# 
-# # Discard journals that have fewer than 'sample.size.cutoff' papers that meet the following requirements:
-# # - Have at least one author with a forename listed
-# # - Are a 'journal article'
-# ####### - Have an Abstract (i.e. character count of abstract is > 0)
-# cull.some.papers.and.journals <- function(input.dir, output.dir, sample.size.cutoff){
-#   files <- list.files(input.dir, full.names = T)
-#   journals <- gsub(".csv","",sapply(strsplit(files, split="/"),tail,1))
-#   sample.size.list <- data.frame(journal = journals, num.papers=NA, num.with.authors=NA)
-#   for(i in 1:length(files)){
-#     
-#     if(exists("focal")) rm(focal)
-#     try(focal <- read.csv(files[i], stringsAsFactors = F), silent=T)
-#     if(!exists("focal"))  sample.size.list[i, 2:3] <- 0 # If there are no papers in the file, just record that and move on to the next file
-#     
-#     else{ # Otherwise, apply selection criteria, save the file, and record the sample size for that journal
-#       # Restrict to journal articles with abstracts, and discard those columns
-#       # focal <- focal[focal$abstract.length > 0 & focal$is.journal.article == 1, !(names(focal) %in% c("abstract.length", "is.journal.article"))]
-#       focal$forenames <- as.character(focal$forenames) # R will interpret the forename F or T as logical, so strsplit gets confused :)
-#       focal <- focal[focal$is.journal.article == 1, !(names(focal) %in% c("is.journal.article"))] # new line of code that just checks JA status
-#       focal <- focal[!is.na(focal$forenames), ] # Remove papers with no authors at all
-#       focal <- focal[!is.na(focal$journal), ] # Remove papers with no known journal attached (should have been done already but no harm double checking)
-#       
-#       sample.size.list$num.papers[i] <- nrow(focal) # Number of papers, including those with initials only
-#       
-#       if(sample.size.list$num.papers[i] == 0) sample.size.list$num.with.authors[i] <- 0
-#       else{
-#         papers.with.a.name <- sapply(strsplit(focal$forenames, split="_"), function(x) max(nchar(x))) > 1
-#         sample.size.list$num.with.authors[i] <- sum(papers.with.a.name)
-#         # If there are enough papers with names, trim the initial-only papers off and write a file to disk containing the culled dataset for this particular journal
-#         if(sample.size.list$num.with.authors[i] > sample.size.cutoff) write.csv(focal[papers.with.a.name, ], row.names = F, file = paste(output.dir, "/", journals[i], ".csv", sep=""))
-#       }
-#     }
-#   }
-#   # Save a list of the number of papers per journal at this stage of culling
-#   write.csv(sample.size.list, file = "../outputs/Sample size at culling stage 1.csv",row.names = F) 
-# }
-# 
-
-# 
-# # Function to make one combined spreadsheet with only forename papers from correct journals
-# make.combined.datasheet <- function(input.dir, output.file){
-#   combo <- do.call("rbind", lapply(input.dir, read.csv, stringsAsFactors = F))
-#   print(paste("Number of duplicate pmids:", sum(duplicated(combo$pmid)))) # should be zero
-#   combo <- focal[order(focal$journal, convert.dates(focal$date), focal$pmid), ] # Reorder by journal, date, and PMID
-#   write.csv(combo, file = output.file, row.names = F)
-# }
-
-
-########################################################################################################
-# TRY TO ASSIGN A GENDER TO EVERY AUTHOR IN THE DATASET
-########################################################################################################
-
-# Functions that assign a gender based on first names, using the 'gender' and 'genderdata' packages. See here for info: https://cran.rstudio.com/web/packages/gender/vignettes/predicting-gender.html
-
-# This first function attempts to assign gender to every unique name that was recovered, and makes a big list of names and genders (this list can then be fed into the function "genderize.paper.data")
-# Arg: takes every author list that I have retrieved (i.e. names separated by underscores), which are assumed to be housed in a data frame with a column called 'forenames'
-# My function uses the "ssa" method for the gender function; this method uses name-gender associations from USA census data from 1930 to 2012.
-make.gender.table <- function(df, male.cutoff = 0.95, female.cutoff = 0.05, return.cutoff.only = T){
-  all.names <- unlist(strsplit(df$forenames, split = "_")) # Remove the underscores
-  authors <- all.names
-  number.of.authors <- length(authors)
-  all.names <- all.names[nchar(all.names) > 1] # Exclude all the single-letter names, which are initials and cannot be genderized
-  number.of.authors.with.forenames <- length(all.names)
-  all.names <- unique(all.names) # Get the unique names
-  number.of.unique.names <- length(all.names)
-  gender.table <- gender(all.names, method = "ssa")
-  output <- data.frame(name = all.names, gender = "U", prop.male = 0, stringsAsFactors = F)
-  output <- data.frame(name = gender.table$name, gender = "U", prop.male = gender.table$proportion_male, stringsAsFactors = F)
-  output$gender[gender.table$proportion_male > male.cutoff] <- "M"
-  output$gender[gender.table$proportion_male < female.cutoff] <- "F"
-  
-  number.of.names.confidently.gendered <- sum(gender.table$gender != "U")
-  number.of.authors.confidently.gendered <- sum(authors %in% output$name[output$gender != "U"])
-  
-  print(paste("Number of authors:", number.of.authors))
-  print(paste("Number of authors with forenames:", number.of.authors.with.forenames))
-  print(paste("Number of unique names:", number.of.unique.names))
-  print(paste("Number of names confidently gendered:", number.of.names.confidently.gendered))
-  print(paste("Number of authors confidently gendered:", number.of.authors.confidently.gendered))
-  print(paste("% authors confidently gendered:", round(100 * number.of.authors.confidently.gendered / number.of.authors, 2)))
-  
-  if(return.cutoff.only) return(output[output$gender != "U", 1:2])
-  
-  allnames <- union(output$name, all.names)
-  excess <- length(allnames) - nrow(output)
-  output <- data.frame(name = allnames, gender = c(output$gender, rep("U",excess)), prop.male =  c(output$prop.male, rep(NA,excess)), stringsAsFactors = F)
-  return(output)
-}
-
-
-# Args: the huge dataframe, and a table of all the known genders for names in the dataset (made with the previous function)
-genderize.df <- function(df, gender.table){
-  df$gender <- "U"
-  df$gender.score <- NA
-  if(nrow(df) > 15000){
-    chunk.size <- 15000 # higher numbers cause memory problems
-    nPapers <- nrow(df)
-    nChunks <- ceiling(nPapers / chunk.size)
-    starts <- seq(1,1+(nChunks-1)*chunk.size, by = chunk.size)
-    ends <- seq(chunk.size, nChunks*chunk.size, by = chunk.size); ends[length(ends)] <- nPapers
-    for(i in 1:length(starts)){
-      print(paste("Doing chunk ", i, " of ", length(starts), ".", sep=""))
-      split <- strsplit(df$forenames[starts[i]:ends[i]], split = "_")
-      names(split) <- df$pmid[starts[i]:ends[i]]
-      author.lists <- melt(split) # first col ("value") is a name, second ("L1") is the rownumber of its paper
-      author.lists$gender <- "U"
-      author.lists$gender.score <- "U"
-      
-      author.lists$gender <- gender.table$gender[match(author.lists$value, gender.table$name)]
-      author.lists$gender[is.na(author.lists$gender)] <- "U"
-      
-      author.lists$gender.score <- gender.table$prop.male[match(author.lists$value, gender.table$name)]
-      
-      xx <- tapply(author.lists$gender, author.lists$L1, function(x) paste0(x, collapse=""))
-      df$gender[match(names(xx), df$pmid)] <- as.character(xx)
-      xx <- tapply(round(author.lists$gender.score, 3), author.lists$L1, function(x) paste0(x, collapse="_"))
-      df$gender.score[match(names(xx), df$pmid)] <- as.character(xx)
-    }
-  }
-  
-  else author.lists$gender<- gender.table$gender[match(author.lists$value, gender.table$name)]
-  
-  return(df)
-}
-
-
 ########################################################################################################
 # FUNCTIONS TO GET AUTHOR AFFILIATIONS FROM THE PUBMED XML FILES (I added these after getting all the other data -
 # ideally you'd get the addresses at the same time as the author list, date, etc. But it took me a while to work
@@ -981,7 +776,7 @@ get.unique.states <- function(dirs){
   states$country[grep("jerusalem", states$state)] <- "israel"
   states$country[grep("finland", states$state)] <- "finland"
   
-  states$country[intersect(grep("new york", states$state), grep("guangdong", states$state))] <- NA # one address lists both of these!
+  states$country[intersect(grep("new york", states$state), grep("guangdong", states$state))] <- NA # one address lists both of these! Let's say we don't know the country.
   states$country[intersect(grep("saskatchewan", states$state), grep("guangdong", states$state))] <- NA
   
   states$country[intersect(grep(glob2rx("s*o paulo sp"), states$state), which(nchar(states$state) == 13))] <- "brazil"
@@ -1030,7 +825,7 @@ get.unique.cities <- function(dirs, known.states = states$state[!is.na(states$co
   cities <- cities[order(cities$count), ]
   cities <- cities[!is.na(cities$city), ]
   
-  cities <- cities[cities$count > 10000,] # restrict to most common cities to save my workload
+  cities <- cities[cities$count > 10000,] # restrict to most common cities to limit my workload
   
   # Try to guess the countries from the cities, using data I found online
   xx <- read.csv("../data/worldcities.csv", stringsAsFactors = F)
@@ -1147,10 +942,10 @@ get.unique.cities <- function(dirs, known.states = states$state[!is.na(states$co
   cities$country[intersect(grep(glob2rx("s*o paulo"), cities$city), which(nchar(cities$city) == 10))] <- "brazil"
   cities$country[intersect(grep(glob2rx("montr*al"), cities$city), which(nchar(cities$city) == 9))] <- "canada"
   cities$country[grep("aukland", cities$city)] <- "new zealand"
-  cities$country[grep("cambridge", cities$city)] <- NA # Could be USA or UK
-  cities$country[grep("durham", cities$city)] <- NA # Could be USA or UK
-  cities$country[grep("birmingham", cities$city)] <- NA # Could be USA or UK
-  cities$country[grep("worcester", cities$city)] <- NA # Could be USA or UK
+  cities$country[grep("cambridge", cities$city)] <- NA # Could be USA or UK, Greece etc, so let's not risk making an error with these ones
+  cities$country[grep("durham", cities$city)] <- NA 
+  cities$country[grep("birmingham", cities$city)] <- NA 
+  cities$country[grep("worcester", cities$city)] <- NA 
   cities$country[grep("republic", cities$city)] <- NA
   cities$country[grep("louis", cities$city)] <- NA
   cities$country[grep("hamilton", cities$city)] <- NA
@@ -1159,7 +954,6 @@ get.unique.cities <- function(dirs, known.states = states$state[!is.na(states$co
   cities$country[grep("richmond", cities$city)] <- NA
   cities$country[grep("kingston", cities$city)] <- NA
   cities$country[cities$city == "new"] <- NA
-  
   
   cities[order(cities$country, cities$city),]
 }
@@ -1298,7 +1092,7 @@ make.address.datafile <- function(input.dirs, over.write=F, acceptable.countries
   # use this to check for duplicates when bug checking: matches[matches$search.term %in% matches$search.term[duplicated(matches$search.term)], ] %>% arrange(search.term)
   
   matches$country[matches$search.term == "usa"] <- "usa" # Now deal with the duplicates that map to 2 countries
-  matches$country[matches$search.term == "georgia"] <- "usa" # sorry to the country Georgia, but I check and it seems most of these hits are USA
+  matches$country[matches$search.term == "georgia"] <- "usa" # sorry to the country Georgia, but I checked and it seems most/all of these hits are USA
   matches$country[matches$search.term == "taiwan"] <- "taiwan"
   matches$country[matches$search.term == "new brunswick"] <- "canada"
   matches$country[matches$search.term == "guadeloupe"] <- "guadeloupe"
@@ -1346,8 +1140,10 @@ make.address.datafile <- function(input.dirs, over.write=F, acceptable.countries
   }
 }
 
-
-#### FUNCTION ADDED POST-HOC TO GO BACK AND GET THE TITLE OF EACH PAPER FROM THE PUBMED XML FILES
+###############################################################################################
+# FUNCTION ADDED POST-HOC TO GO BACK AND GET THE TITLE OF EACH PAPER FROM THE PUBMED XML FILES
+# This is needed for the analysis of invited vs non-invited papers
+###############################################################################################
 
 parse.many.xml.titles <- function(input.dir, output.dir, focal.chunk=NULL, num.chunks = 8, over.write = F){
   
@@ -1425,22 +1221,5 @@ parse.many.xml.titles <- function(input.dir, output.dir, focal.chunk=NULL, num.c
   }
 }
 
-#### END
 
 
-
-
-
-
-
-# Add some 95% confidence limits to every single proportion in the summary data sheets, using the default method from binom.test - this takes a while to calculate
-add.CIs.to.summary <- function(df){
-  df <- df %>% mutate(lCI.overall = NA, uCI.overall = NA, lCI.first = NA, uCI.first = NA, lCI.last = NA, uCI.last = NA, lCI.single = NA, uCI.single = NA)
-  for(i in 1:nrow(df)) {
-    try(df[i,grep("CI.overall",names(df))] <- with(df[i, ], as.numeric(binom.test(nFemales.overall, nFemales.overall+nMales.overall)$conf)), silent = T)
-    try(df[i,grep("CI.first",names(df))] <- with(df[i, ], as.numeric(binom.test(nFemales.first, nFemales.first + nMales.first)$conf)), silent = T)
-    try(df[i,grep("CI.last",names(df))] <- with(df[i, ], as.numeric(binom.test(nFemales.last, nFemales.last + nMales.last)$conf)), silent = T)
-    try(df[i,grep("CI.single",names(df))] <- with(df[i, ], as.numeric(binom.test(nFemales.single, nFemales.single + nMales.single)$conf)), silent = T)
-  }
-  return(df)
-}
