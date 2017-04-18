@@ -8,7 +8,7 @@ The code relies heavily on a SQLite database that was created from the PubMed XM
 ### Description of each file
 
 #### Author counts for journal country and position.csv.zip
-Zipped .csv file containing a summary of the dataset. The spreadsheet gives the number of male, female and unknown-gender authors that were counted for each combination of year, authorship position (i.e. first/last/middle/single), country (including 'unknown', which refers either to authors with no affiliation, or those with an affiliation for which we could not identify the country), and journal (using the abbreviations favoured by PubMed). 'First' and 'Last' authors were counted from all papers with 2 or more authors. 'Middle' authors are any authors other than the first and last, on papers with three or more authors. Single authors are the authors of papers that list only one author.
+Zipped .csv file containing a summary of the dataset. The spreadsheet gives the number of male, female and unknown-gender authors that were counted for each combination of year, authorship position (i.e. first/last/middle/single), country (including 'unknown', which refers either to authors with no affiliation, or those with an affiliation for which we could not identify the country), and journal (using the abbreviations favoured by PubMed). 'First' and 'Last' authors were counted from all papers with 2 or more authors. 'Middle' authors are any authors other than the first and last, on papers with three or more authors. Single authors are the authors of papers that list only one author. The unknown-gender authors are people who only gave initials, those whose names were not listed on genderize.io, or those with names that are not associated with one gender >95% of the time (e.g. Alex, Robin).
 
 ##### Data making functions.R
 A series of functions used to make the datasets used in the analysis (e.g. to extract useful information from PubMed's XML data, and to assign gender to author names)
@@ -17,7 +17,7 @@ A series of functions used to make the datasets used in the analysis (e.g. to ex
 Script to call the genderize.io API from R, and get the genders associated with each name (in a country-specific manner, where possible)
 
 #### journal_disciplines.csv
-A csv file that gives the discipline that was assigned to each journal. Use this if you want to interpret the data in 'Author counts for journal country and position.csv.zip' in terms of disciplines. 
+A csv file that gives the discipline that was assigned to each journal. Use this if you want to interpret the data in 'Author counts for journal country and position.csv.zip' in terms of disciplines, using the same mappings of journals-to-disciplines that we did. 
 
 #### Plot and analysis functions.R
 Functions used to make plots or statistically analyse the data from PubMed and arXiv. Called with source() from 'Plots and analyses.R'.
