@@ -6,7 +6,7 @@ Code used to extract and analyse gender data from PubMed and arXiv for a forthco
 #### Author counts for journal country and position.csv.zip
 Zipped .csv file containing a summary of the dataset. The spreadsheet gives the number of male, female and unknown-gender authors that were counted for each combination of year, authorship position (i.e. first/last/middle/single), country (including 'unknown', which refers either to authors with no affiliation, or those with an affiliation for which we could not identify the country), and journal (using the abbreviations favoured by PubMed). 'First' and 'Last' authors were counted from all papers with 2 or more authors. 'Middle' authors are any authors other than the first and last, on papers with three or more authors. Single authors are the authors of papers that list only one author.
 
-##### ## Data making functions.R
+##### Data making functions.R
 A series of functions used to make the datasets used in the analysis (e.g. to extract useful information from PubMed's XML data, and to assign gender to author names)
 
 #### Genderize script.R
