@@ -5,8 +5,6 @@ setwd("~/Desktop/Gender Pubmed mining project/R scripts")
 library(XML)
 suppressPackageStartupMessages(library(dplyr))
 library(reshape2)
-library(gender)    # Note that you will also need to type install_genderdata_package() the first time you load this library - this installs the big database of names and genders
-library(genderdata)
 library(stringr)
 source("Data making functions.R")
 
