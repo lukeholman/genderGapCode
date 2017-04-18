@@ -97,10 +97,10 @@ pfunc <- function(t, r, c){exp(0.5*r*t)/(2*exp(0.5*r*t)+c)} # function for a sig
 
 # Get the estimated gender ratio, its rate of change, and the estimated number of years until gender parity (defined as 45-55% female)
 gender.stats <- function(item, filter.type, position, country = "all", data.source, chunk.size = 10, nChunks = 100, plot = T, print.each.one = F, run.sim = F, export.JSON = F, verbose = T){
-
+  
   # Print which item we are doing
   if(verbose) print(paste("Doing ", item, " (", position, ")", sep = ""))
-
+  
   ############ DEFINE INTERNAL FUNCTIONS 
   pfunc.deriv <- function(p, r) r*p*(0.5-p) # the first deriviative of the pfunc function (needed to find the rate of change in gender ratio on a specified date)
   
@@ -212,7 +212,7 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
     real.data <- real.data[!is.na(real.data$country), ] # Throw out papers where the country is recorded as NA
     real.data <- real.data[str_detect(real.data$country, country), ] # Throw out papers where the focal country was not listed anywhere
     if(nrow(real.data) == 0) {
-     # print("There are no data for this country, giving up")
+      # print("There are no data for this country, giving up")
       return(NULL) #  If there are no data, just end the whole function and return nothing
     }
     split.country <- strsplit(real.data$country, split = "_") # split the string holding the countries
@@ -246,11 +246,16 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
   real.data <- real.data[str_count("U", real.data$gender) != nchar(real.data$gender) & !is.na(real.data$gender), ] 
   n.papers <- nrow(real.data)
   
+  
   ###################  If there are no data, just end the function and return nothing
   if(n.papers == 0) {
-  #  print("There are no data for this item, giving up")
+    #  print("There are no data for this item, giving up")
     return(NULL)
   }
+  
+  ################## Count the number of unique papers in each year - needed for the web app mouse-over information
+  n.papers.per.year <- real.data %>% mutate(year = floor(date)) %>% group_by(year) %>% summarise(n = n()) %>% as.data.frame()
+  n.papers.per.year$year <- 2000 + n.papers.per.year$year
   
   ###################   Count the number of male and female authors observed on each unique date - we use this data to generate resamples efficiently
   real.data <- real.data %>% group_by(date) %>% summarise(F = sum(str_count(gender, "F")), M =  sum(str_count(gender, "M"))) %>% as.data.frame %>% gather(gender, count, -date) 
@@ -258,9 +263,9 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
   n.authors <- sum(real.data$count) # The number of M and F authors in the dataset - each resample will consist of this many authors, drawn with replacement 
   
   ################### If there are too few data, just end the function and return nothing
-  if(n.papers < 100 | n.authors < 250 | max(real.data$date) - min(real.data$date) < 5) {
-  #  print("There are too few papers, authors, or years to fit a curve, giving up")
-    return(NULL)   # <- note the criteria for attempting to fit a curve
+  if(n.papers < 100 | n.authors < 250 | max(real.data$date) - min(real.data$date) < 5) { # <- note the criteria for attempting to fit a curve
+    #  print("There are too few papers, authors, or years to fit a curve, giving up")
+    return(NULL)   
   }
   
   ###################  If doing a journal, we need to also get the discipline for the focal journal from the journals database
@@ -329,26 +334,30 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
   } ######## end of if(run.sim)
   
   ############################# GET R AND C VALUES FROM THE REAL DATA, AS WELL AS THE DATA POINTS NEEDED FOR A GRAPH (here, or in the web app) 
-  # Now find the r and c values using the real dataset (not resamples), and make all the data needed for a plot. This is the main thing needed if export.JSON = T
+  # This is the main thing needed if export.JSON = T
   real.data <- real.data %>% group_by(date) %>% summarise(nFemales = sum(count[gender == "F"]), nMales = sum(count[gender == "M"]), n = nFemales+nMales, proportion.F = nFemales/n) %>% as.data.frame %>% filter(n > 0)
   result <- run.optimiser(real.data)
   real.r <- result$par[1]
   real.c <- result$par[2]
   
+  
   # Find the gender ratio per year from 2002 to 2016 - note that only years with more than 50 authors measured will appear
   overlay.points <- real.data %>% mutate(date = floor(date)) %>% group_by(date) %>% 
     summarise(percent.F = 100 * sum(nFemales) / (sum(nFemales) + sum(nMales)), # % females in focal year
-              nFemales = sum(nFemales), nMales = sum(nMales), # number of male and female authors in the focal year
-              n = n()) %>% # 'n' is the number of papers in the focal year
+              nFemales = sum(nFemales), nMales = sum(nMales)) %>% # number of male and female authors in the focal year
     filter(nFemales + nMales > 50) %>% # Only keep years with at least 50 authors measured
     mutate(Year = date + 2000) %>% # add a nicer year column, and reorder the columns neatly
-    select(Year, percent.F, nFemales, nMales, n)
-
+    select(Year, percent.F, nFemales, nMales)
+  
+  overlay.points$n <- n.papers.per.year$n[match(overlay.points$Year, n.papers.per.year$year)] # Add the number of papers sampled in each year (saved earlier)
+  overlay.points$n[is.na(overlay.points$n)] <- 0
+  
   if(nrow(overlay.points) < 5) {
     # print("There are too few years, giving up")
     return(NULL) # return nothing if we do not have at least 50 gendered authors from at least 5 different years (in addition to having at least 250 authors and 100 papers overall - see above)
   }
-
+  
+  
   overlay.points <- cbind(overlay.points, get.CIs(overlay.points$nFemales, overlay.points$nMales))
   
   if(plot){ # Make a nice plot if requested 
@@ -357,7 +366,7 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
              geom_point(data = overlay.points, aes(x = Year, y = percent.F)) + geom_line(data = model.fit, aes(x = Year, y = percent.F)) + ylab("% women authors")  )
   }
   
-  if(export.JSON){    # function(t, r, c){100 * exp(0.5*r*(t-2000))/(2*exp(0.5*r*(t-2000))+c)} function to predict the % females, where t is the date such that "2004.25" is quarter of the way through 2004
+  if(export.JSON){    # Note: function(t, r, c){100 * exp(0.5*r*(t-2000))/(2*exp(0.5*r*(t-2000))+c)} can be used to predict the % females, where t is the date such that "2004.25" is quarter of the way through 2004. Use this for the web app Javascript
     data.for.web.app <- list(
       overlay.points %>% select(Year, nFemales, nMales, n, percent.F, lowerCI, upperCI) %>%
         rename(Y = Year, F = nFemales, M = nMales, GR = percent.F, lc = lowerCI, uc = upperCI) %>%  
@@ -392,7 +401,7 @@ gender.stats <- function(item, filter.type, position, country = "all", data.sour
     return(out)
   }
   
-} # End of big function
+} # End of big gender.stats function
 
 # wrapper for the gender.stats function used to make the web app data - feeds in a dataframe of arguments, and does one row from it. For use with lapply
 make.web.app.data <- function(row, arguments){
