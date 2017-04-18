@@ -1,6 +1,8 @@
 # genderGapCode
 Code used to extract and analyse gender data from PubMed and arXiv for a forthcoming paper by Luke Holman, Devi Stuart-Fox, and Cindy Hauser.
 
+See https://lukeholman.github.io/genderGap/ for a web app that lets you explore the data set from that paper, and see https://github.com/lukeholman/genderGap for the Javascript code and .json data used by the web app. 
+
 #### A note about the data
 The code relies heavily on a SQLite database that was created from the PubMed XML files using the script **Processing the Pubmed XML files into useable data.R**, and analysed in detail in **Plots and analyses.R**. This database is around 2.5GB and so it is not archived here. For this reason, I have made a summary of the gender data split by country, journal, year, and authorship position, called **Author counts for journal country and position.csv.zip**. This file is comprehensive enough to facilitate many of the analyses you might wish to do. However, it saves on disk space by discarding information such as the ordering of genders and countries on each of ~10m papers, the precise publication date of each paper, the DOIs and titles of the papers, etc. I can supply the SQLite database upon request, or you can try to re-create it using the up-to-date version of PubMed plus code from **script to download a local copy of Medline.R** and **Processing the Pubmed XML files into useable data.R**.
 
