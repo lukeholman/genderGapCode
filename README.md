@@ -17,7 +17,7 @@ A series of functions used to make the datasets used in the analysis (e.g. to ex
 Script to call the genderize.io API from R, and get the genders associated with each name (in a country-specific manner, where possible)
 
 #### journal_disciplines.csv
-A csv file that gives the discipline that was assigned to each journal. Use this if you want to interpret the data in 'Author counts for journal country and position.csv.zip' in terms of disciplines, using the same mappings of journals-to-disciplines that we did. 
+A csv file that gives the discipline that was assigned to each journal. Use this if you want to interpret the data in 'Author counts for journal country and position.csv.zip' in terms of disciplines, using the same mappings of journals-to-disciplines that we did. It also has the full names of all the journals, which helps interpret the short journal titles.
 
 #### Plot and analysis functions.R
 Functions used to make plots or statistically analyse the data from PubMed and arXiv. Called with source() from 'Plots and analyses.R'.
