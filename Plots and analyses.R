@@ -9,6 +9,7 @@ suppressPackageStartupMessages(library(dplyr))
 library(stringr)
 library(tidyr)
 library(jsonlite)
+library(lme4)
 source("Plot and analysis functions.R")
 
 
@@ -183,7 +184,7 @@ json.data <- jsonlite::fromJSON(txt = "../outputs/data_for_web_app.json") %>% fi
 json.data <- json.data %>% select(Discipline, Country, Journal, Curve, Points, Position) # re-order the columns in the manner Errol asked for
 for(i in c(1:3, 6)) json.data[,i] <- unlist(json.data[,i]) # Unlist these ones, to get rid of square brackets
 
-write(toJSON(json.data, pretty = F), file = "../Errol's web app/genderGap/data_for_web_app_unparsed.json")
+write(toJSON(json.data, pretty = F), file = "../Errols web app/genderGap/data_for_web_app.json")
 
 
 ########################################################################################################
@@ -315,7 +316,6 @@ xtable::xtable(car::Anova(lm(adjusted.gender.ratio ~ predictedIF + Review * is.O
 
 
 
-
 ########################################################################################################
 # CALCULATE THE GENDER RATIO, RATE OF CHANGE, AND YEARS TO PARITY FOR ALL COMBOS OF COUNTRY AND DISCIPLINE
 # Only includes combinations where we have 250 authors and 100 papers overall, and at least 5 different 
@@ -325,7 +325,7 @@ xtable::xtable(car::Anova(lm(adjusted.gender.ratio ~ predictedIF + Review * is.O
 # The data we made earlier for the web app tells us which combos of country and discipline have a high enough sample size to predict the gender ratio accurately
 # Reminder: we specified that the combination must have data for 100 papers and 250 authors, and data from at least 5 different years in which at least 50 authors were gendered
 # So, let's load up the combinations that we need to re-visit and analyse using "run.sim = T" in order to fit a curve and bootstrap some CIs for the present gender ratio
-web.app.data <- as_tibble(jsonlite::fromJSON(txt = "../Errol's web app/genderGap/data_for_web_app_unparsed.json")) 
+web.app.data <- as_tibble(jsonlite::fromJSON(txt = "../Errols web app/genderGap/data_for_web_app_unparsed.json")) 
 web.app.data <- web.app.data %>% filter(Position == "Overall", Journal == "allJournals", Country != "allCountries") %>% select(Discipline, Country) 
 
 # Now run the model for each of these combinations (n=2654), and get the data we need to make nice graphs split by country
