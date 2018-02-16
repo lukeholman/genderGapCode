@@ -9,7 +9,6 @@ suppressPackageStartupMessages(library(dplyr))
 library(stringr)
 library(tidyr)
 library(jsonlite)
-library(lme4)
 source("Plot and analysis functions.R")
 
 
@@ -123,10 +122,10 @@ for(i in 1:nrow(missing.entries)){
 #write.csv(do.call("rbind", answers), file = "../outputs/Regressions for each discipline - extras.csv", row.names = F)
 
 # Append all the files together and write them to the "data for analysis" directory
-disc.stats <- rbind(read.csv("../outputs/Regressions for each discipline1.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline2.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline3.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline4.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline5.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline6.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline - extras.csv", stringsAsFactors = F))
+disc.stats <- rbind(read.csv("../outputs/Regressions for each discipline1.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline2.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline3.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline4.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline5.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline6.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each discipline - extras.csv", stringsAsFactors = F)) %>% distinct(discipline, position, .keep_all = TRUE)
 # write.csv(disc.stats, file = "../data for analysis/Statistics for each discipline.csv", row.names = F)
 
-journal.stats <- rbind(read.csv("../outputs/Regressions for each journal1.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal2.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal3.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal4.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal5.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal6.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal - extras.csv", stringsAsFactors = F))
+journal.stats <- rbind(read.csv("../outputs/Regressions for each journal1.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal2.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal3.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal4.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal5.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal6.csv", stringsAsFactors = F), read.csv("../outputs/Regressions for each journal - extras.csv", stringsAsFactors = F)) %>% distinct(journal, position, .keep_all = TRUE)
 #write.csv(journal.stats, file = "../data for analysis/Statistics for each journal.csv", row.names = F)
 
 # Now do the ArXiv major and minor categories too, for Figure 1 and suppl material
@@ -184,7 +183,7 @@ json.data <- jsonlite::fromJSON(txt = "../outputs/data_for_web_app.json") %>% fi
 json.data <- json.data %>% select(Discipline, Country, Journal, Curve, Points, Position) # re-order the columns in the manner Errol asked for
 for(i in c(1:3, 6)) json.data[,i] <- unlist(json.data[,i]) # Unlist these ones, to get rid of square brackets
 
-write(toJSON(json.data, pretty = F), file = "../Errols web app/genderGap/data_for_web_app.json")
+write(toJSON(json.data, pretty = F), file = "../Errol's web app/genderGap/data_for_web_app_unparsed.json")
 
 
 ########################################################################################################
@@ -314,6 +313,32 @@ nrow(journal.data) # There are 2721 journals that we are able to use in this ana
 # Table for export to LaTex
 xtable::xtable(car::Anova(lm(adjusted.gender.ratio ~ predictedIF + Review * is.OA, data = journal.data), type = "III"))
 
+########################################################################################################
+# Supplementary figure about the excess of first authors
+# The figure shows that a few high profile journals have a shortage of female first authors, 
+# rather than an excess like almost all the others
+########################################################################################################
+
+journal.data <- left_join(read.csv("../data for analysis/Statistics for each journal.csv", stringsAsFactors = F), journals_sqlite %>% rename(journal = short.title) %>% select(journal, IF, ISSN), copy = T)
+journal.data <- journal.data %>% filter(!is.na(IF)) # Discard journals with no impact factor
+journal.data <- journal.data %>% filter(n.authors > 1000) # Only keep journals where we measured gender for >1000 first authors
+journal.data <- journal.data %>% filter(up.CI.1 - low.CI.1 < 5) # Only keep journals where we measured gender ratio to within 5% for first and overall gedner 
+journal.data <- journal.data %>% filter(position == "first" | position == "overall") # Discard all but the "first" and "overall" gender ratio data
+journal.data <- journal.data %>% filter(journal %in% names(table(journal.data$journal)[table(journal.data$journal) == 2])) # only include journals where we managed to measure first and overall author gender ratio
+journal.data <- journal.data %>% arrange(journal, position) # sort them
+journal.data$logIF <- log10(journal.data$IF) # Take the log10 of the impact factor
+journal.data$predictedIF <- resid(lmer(logIF ~ (1|discipline), data = journal.data)) # Calculate residual log10 IF for each journal (i.e. IF relative to the field that it is in)
+
+# for each journal, find the difference in gender ratio between first authors, and all authors (so, +5% means the first author gender ratio is higher by 5%) 
+test <- journal.data  %>% group_by(journal) %>% 
+  summarise(difference = gender.ratio.at.present[1] - gender.ratio.at.present[2], 
+            IF = predictedIF[1]) %>% filter(!is.na(difference))
+test$label <- test$journal
+test$label[!(test$difference < -1.6)] <- NA
+supp.figure <- test %>% ggplot(aes(IF, difference)) + geom_hline(yintercept = 0, linetype=2) + geom_point(alpha=0.8, colour = "tomato") + geom_text_repel(aes(label=label), alpha=0.7) + ylab("Excess/shortage of women first authors (%)") + xlab("Impact factor (standardised to discipline)") + theme_minimal() 
+ggsave(supp.figure, file = "../figures/Excess of women first authors.pdf", width = 7, height = 6)
+
+
 
 
 ########################################################################################################
@@ -325,7 +350,7 @@ xtable::xtable(car::Anova(lm(adjusted.gender.ratio ~ predictedIF + Review * is.O
 # The data we made earlier for the web app tells us which combos of country and discipline have a high enough sample size to predict the gender ratio accurately
 # Reminder: we specified that the combination must have data for 100 papers and 250 authors, and data from at least 5 different years in which at least 50 authors were gendered
 # So, let's load up the combinations that we need to re-visit and analyse using "run.sim = T" in order to fit a curve and bootstrap some CIs for the present gender ratio
-web.app.data <- as_tibble(jsonlite::fromJSON(txt = "../Errols web app/genderGap/data_for_web_app_unparsed.json")) 
+web.app.data <- as_tibble(jsonlite::fromJSON(txt = "../Errol's web app/genderGap/data_for_web_app_unparsed.json")) 
 web.app.data <- web.app.data %>% filter(Position == "Overall", Journal == "allJournals", Country != "allCountries") %>% select(Discipline, Country) 
 
 # Now run the model for each of these combinations (n=2654), and get the data we need to make nice graphs split by country
@@ -487,7 +512,7 @@ merged$nMales[is.na(merged$nMales)] <- 0
 merged$nUnknown[is.na(merged$nUnknown)] <- 0
 merged <- merged %>% filter(country != "Taiwan" & country != "Unknown") # Taiwan is not in the UN data separately 
 # These places do not have complete UN data and will be removed
-# "Hong Kong"      "Nigeria"        "Puerto Rico"    "Madagascar"     "Brunei"         "Uzbekistan"     "Guadeloupe"     "Ivory Coast"    "Reunion Island" "Bermuda"        "Saint Lucia"
+# Hong Kong, Nigeria, Puerto Rico, Madagascar, Brunei, Uzbekistan, Guadeloupe, Ivory Coast, Reunion Island, Bermuda, Saint Lucia
 merged <- merged[complete.cases(merged), ] # Remove countries with incomplete UN data
 merged <- left_join(merged, journals_sqlite %>% select(short.title, Discipline) %>% rename(journal = short.title, discipline = Discipline), copy = TRUE) # Add the disciplines
 merged <- merged %>% filter(nFemales + nMales >= 10) # throw out combinations with fewer than 10 authors measured

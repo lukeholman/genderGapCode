@@ -1,7 +1,7 @@
 library(stringr)
 library(dplyr)
 library(jsonlite)
-api.key <- "4da1b848571732e83d106e2e5c44ccdb"
+api.key <- "ENTER_YOUR_KEY_HERE"
 
 # The Genderize API often gives a time-out error, so when we enter a search and it fails, try, try again!
 # In my experience, it never fails more than once, and the second try works fine. But I added 50 tries to be safe
