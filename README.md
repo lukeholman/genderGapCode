@@ -1,10 +1,14 @@
 # genderGapCode
-Code used to extract and analyse gender data from PubMed and arXiv for a forthcoming paper by Luke Holman, Devi Stuart-Fox, and Cindy Hauser.
+Code used to extract and analyse gender data from PubMed and arXiv for a 2018 _PLoS Biology_ paper by Luke Holman, Devi Stuart-Fox, and Cindy Hauser.
 
 See https://lukeholman.github.io/genderGap/ for a web app that lets you explore the data set from that paper, and see https://github.com/lukeholman/genderGap for the Javascript code and .json data used by the web app. 
 
-#### A note about the data
-The code relies heavily on a SQLite database that was created from the PubMed XML files using the script **Processing the Pubmed XML files into useable data.R**, and analysed in detail in **Plots and analyses.R**. This database is around 2.5GB and so it is not archived here. For this reason, I have made a summary of the gender data split by country, journal, year, and authorship position, called **Author counts for journal country and position.csv.zip**. This file is comprehensive enough to facilitate many of the analyses you might wish to do. However, it saves on disk space by discarding information such as the ordering of genders and countries on each of ~10m papers, the precise publication date of each paper, the DOIs and titles of the papers, etc. I can supply the SQLite database upon request, or you can try to re-create it using the up-to-date version of PubMed plus code from **script to download a local copy of Medline.R** and **Processing the Pubmed XML files into useable data.R**.
+#### A note about the data and code
+The code relies heavily on a SQLite3 database that was created from the PubMed XML files using the script **Processing the Pubmed XML files into useable data.R**, and analysed in detail in **Plots and analyses.R**. This database is around 2.5GB and so it is not archived on Github. Intead, you can get it at the Open Science Framework at https://osf.io/bt9ya/files/. My R code retrieves information from the database using the dplyr and dbplyr R packages; here is a guide to getting started accessing databases using R: https://cran.r-project.org/web/packages/dbplyr/vignettes/dbplyr.html. 
+
+For people who prefer to work with data in a spreadsheet, I have also made a summary of the gender data split by country, journal, year, and authorship position, called **Author counts for journal country and position.csv.zip**. This file is comprehensive enough to facilitate many of the analyses you might wish to do. However, in order to keep the file size manageable, this spreadsheet discards some of the information that you could get from the database. This includes the orders of authors' genders and countries of affiliation, the precise publication date of every paper, the PMIDs, DOIs and titles of each paper, etc.
+
+If you'd like to update the PubMed data (which is current up to August 2016), I suggest you download a local copy of PubMed using the script **script to download a local copy of Medline.R** (note that it will be over 20GB), and then work through the R script **Processing the Pubmed XML files into useable data.R** to extract useful information from PubMed's XML files. You can also look into the R package ``RISmed``, which can be used to search PubMed from R. This latter option is definitely preferable for smaller studies focused on a particular subset of the literature, but it is not a good way to access the entirety of PubMed, which is why I downloaded a local copy to work with.
 
 
 ### Description of each file
@@ -12,31 +16,23 @@ The code relies heavily on a SQLite database that was created from the PubMed XM
 #### Author counts for journal country and position.csv.zip
 Zipped .csv file containing a summary of the dataset. The spreadsheet gives the number of male, female and unknown-gender authors that were counted for each combination of year, authorship position (i.e. first/last/middle/single), country (including 'unknown', which refers either to authors with no affiliation, or those with an affiliation for which we could not identify the country), and journal (using the abbreviations favoured by PubMed). 'First' and 'Last' authors were counted from all papers with 2 or more authors. 'Middle' authors are any authors other than the first and last, on papers with three or more authors. Single authors are the authors of papers that list only one author. The unknown-gender authors are people who only gave initials, those whose names were not listed on genderize.io, or those with names that are not associated with one gender >95% of the time (e.g. Alex, Robin).
 
+#### script to download a local copy of Medline.R
+This R script writes a Shell script that can be used to download a local copy of the Medline database (which is >20 GB), in order to process the PubMed XML files locally.
+
 ##### Data making functions.R
-A series of functions used to make the datasets used in the analysis (e.g. to extract useful information from PubMed's XML data, and to assign gender to author names)
+A series of functions used to make the datasets used in the analysis (e.g. to extract useful information from PubMed's messy XML files, and to assign gender to author names)
+
+#### Processing the Pubmed XML files into useable data.R
+Script that processes the PubMed XML files, using functions from 'Data making functions.R'.
 
 #### Genderize script.R
 Script to call the genderize.io API from R, and get the genders associated with each name (in a country-specific manner, where possible)
-
-#### journal_disciplines.csv
-A csv file that gives the discipline that was assigned to each journal. Use this if you want to interpret the data in 'Author counts for journal country and position.csv.zip' in terms of disciplines, using the same mappings of journals-to-disciplines that we did. It also has the full names of all the journals, which helps interpret the short journal titles.
 
 #### Plot and analysis functions.R
 Functions used to make plots or statistically analyse the data from PubMed and arXiv. Called with source() from 'Plots and analyses.R'.
 
 #### Plots and analyses.R
-Script used to produce all the figures, tables and statistical results in the paper.
-
-#### Processing the Pubmed XML files into useable data.R
-Script that processes the PubMed XML files, using functions from 'Data making functions.R'.
+Script used to produce the figures, tables and statistical results in the paper.
 
 #### arXiv mining script.R
-Script used to collect gender data from arXiv.
-
-#### script to download a local copy of Medline.R
-This R script writes a Shell script that can be used to download a local copy of the Medline database (which is >20 GB), in order to process the PubMed XML files locally.
-
-
-
-
-
+Script used to collect gender data from arXiv using R.
